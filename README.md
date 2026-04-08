@@ -13,7 +13,7 @@ Also useful if you search for: *Go web service template*, *Gin CRUD example*, *J
 | Doc | Purpose |
 |-----|---------|
 | **This README** | Features, install, architecture at a glance, tech stack, contributing. |
-| [Learning.md](Learning.md) | File-by-file reading order, request/runtime flow, how to add a feature. |
+| [LEARNING.md](LEARNING.md) | File-by-file reading order, request/runtime flow, how to add a feature. |
 | [EXPLAINER.md](EXPLAINER.md) | Same ideas in very plain language. |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Deeper layout, scaling, security, commands. |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute. |
@@ -64,7 +64,7 @@ flowchart TB
     Resp --> C
 ```
 
-Dependency wiring (startup): **`cmd/api/main.go`** → **`internal/config`** → **`internal/app`** builds repositories, services, handlers, then **`internal/router`** mounts routes. See [Learning.md](Learning.md) for a file-by-file walkthrough.
+Dependency wiring (startup): **`cmd/api/main.go`** → **`internal/config`** → **`internal/app`** builds repositories, services, handlers, then **`internal/router`** mounts routes. See [LEARNING.md](LEARNING.md) for a file-by-file walkthrough.
 
 ---
 

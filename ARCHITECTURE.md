@@ -79,7 +79,7 @@ Protected routes add `middleware.JWTAuth` (reads `Authorization: Bearer <token>`
 - **ORM**: GORM for queries; **schema** is owned by SQL files in `migrations/`, not `AutoMigrate`, so reviews and rollbacks stay explicit.
 - **Tool**: [golang-migrate](https://github.com/golang-migrate/migrate) CLI (`migrate up` / `down`).
 
-The **full vertical slice** (migrations → domain → repository → service → HTTP module → router → `app.go` → Swagger) is documented in the next section — **mirrored from [Learning.md](Learning.md)** so architecture and onboarding stay in sync.
+The **full vertical slice** (migrations → domain → repository → service → HTTP module → router → `app.go` → Swagger) is documented in the next section — **mirrored from [LEARNING.md](LEARNING.md)** so architecture and onboarding stay in sync.
 
 ---
 
@@ -253,9 +253,9 @@ make swagger
 - [ ] `migrate up` succeeds on a clean DB.  
 - [ ] `go build ./...` and `go test ./...` pass.  
 - [ ] Hit new endpoints with curl or Swagger UI.  
-- [ ] Add a row to the **“Every file explained”** table in **[Learning.md](Learning.md)** for your new files (keeps onboarding accurate).
+- [ ] Add a row to the **“Every file explained”** table in **[LEARNING.md](LEARNING.md)** for your new files (keeps onboarding accurate).
 
-*(Same content as Learning.md § “How to add a new feature module”; update both places if you change the recipe.)*
+*(Same content as LEARNING.md § “How to add a new feature module”; update both places if you change the recipe.)*
 
 ---
 

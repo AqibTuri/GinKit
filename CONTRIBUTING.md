@@ -5,7 +5,7 @@ Thanks for helping improve this template. This document describes how we expect 
 ## Before you start
 
 - Read [README.md](README.md) for scope and setup.
-- For file-by-file onboarding and how to add a feature end-to-end, see [Learning.md](Learning.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
+- For file-by-file onboarding and how to add a feature end-to-end, see [LEARNING.md](LEARNING.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Ways to contribute
 
@@ -18,7 +18,7 @@ Thanks for helping improve this template. This document describes how we expect 
 2. **Tests:** `go test ./...` passes locally (CI runs against Postgres and migrations).
 3. **Migrations:** If you change the database schema, add paired `.up.sql` / `.down.sql` files and ensure `migrate up` works on a clean database.
 4. **API docs:** If you add or change handler Swag comments, run `make swagger` and commit the generated `docs/` updates.
-5. **Docs:** If you add notable files or flows, add a row to the **“Every file explained”** table in [Learning.md](Learning.md) and keep [ARCHITECTURE.md](ARCHITECTURE.md) in sync when you touch the mirrored “How to add a new feature module” section.
+5. **Docs:** If you add notable files or flows, add a row to the **“Every file explained”** table in [LEARNING.md](LEARNING.md) and keep [ARCHITECTURE.md](ARCHITECTURE.md) in sync when you touch the mirrored “How to add a new feature module” section.
 
 ## Code style
 

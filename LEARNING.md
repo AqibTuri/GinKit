@@ -1,4 +1,4 @@
-# Learning guide — Gin API template
+# LEARNING guide — Gin API template
 
 Deep dive: **reading order** for source files, **startup and request runtime flow**, and **how to add a feature module**. For a high-level overview, start with [README.md](README.md); for plain-language concepts, see [EXPLAINER.md](EXPLAINER.md); for operations and security, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
