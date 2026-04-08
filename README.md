@@ -1,6 +1,12 @@
 # Gin API template
 
-Production-style Go + Gin backend: Postgres + GORM, SQL migrations, JWT, bcrypt, modular handlers (DTO + presenter per feature), unified JSON responses, rate limiting, Swagger UI, CI.
+**Go (Golang) REST API starter** built with **Gin**—a production-style **backend boilerplate**: **PostgreSQL**, **GORM**, versioned **SQL migrations**, **JWT** auth, **bcrypt**, **Swagger / OpenAPI**, **rate limiting**, **Docker Compose** for local DB, and **GitHub Actions** CI.
+
+Also useful if you search for: *Go web service template*, *Gin CRUD example*, *JWT API PostgreSQL*, *clean architecture Go*, *microservice starter*.
+
+**Topics / keywords:** `go` · `golang` · `gin` · `gin-gonic` · `rest-api` · `backend` · `postgresql` · `gorm` · `jwt` · `swagger` · `openapi` · `docker` · `sql-migrations` · `golang-migrate` · `boilerplate` · `starter-kit` · `github-actions`
+
+> **Tip:** Add the same words as [GitHub repository topics](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/classifying-your-repository-with-topics) so the repo is easier to find.
 
 **Module path:** `gin-api` (see `go.mod`). To use a GitHub path later, change the `module` line and replace imports project-wide.
 
