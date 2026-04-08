@@ -1,0 +1,339 @@
+basePath: /
+definitions:
+  admin.PingOut:
+    properties:
+      scope:
+        example: admin
+        type: string
+      status:
+        example: ok
+        type: string
+    type: object
+  auth.LoginRequest:
+    properties:
+      email:
+        example: you@example.com
+        type: string
+      password:
+        example: long-safe-password
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  auth.RegisterRequest:
+    properties:
+      email:
+        example: you@example.com
+        maxLength: 255
+        type: string
+      password:
+        example: long-safe-password
+        maxLength: 72
+        minLength: 12
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  auth.TokenOut:
+    properties:
+      access_token:
+        type: string
+      expires_in_seconds:
+        example: 3600
+        type: integer
+    type: object
+  auth.UserOut:
+    properties:
+      email:
+        example: you@example.com
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      role:
+        example: user
+        type: string
+    type: object
+  health.StatusOut:
+    properties:
+      status:
+        example: ok
+        type: string
+    type: object
+  response.Body:
+    properties:
+      data:
+        type: object
+      message:
+        example: OK
+        type: string
+      status_code:
+        example: 200
+        type: integer
+      success:
+        example: true
+        type: boolean
+    type: object
+  upload.UploadResultOut:
+    properties:
+      bytes:
+        example: 1024
+        type: integer
+      filename:
+        example: f47ac10b-58cc-4372-a567-0e02b2c3d479.jpg
+        type: string
+    type: object
+  user.UserOut:
+    properties:
+      email:
+        example: you@example.com
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      role:
+        example: user
+        type: string
+    type: object
+info:
+  contact: {}
+  description: 'Modular Gin API: JWT auth, SQL migrations, per-module DTOs and presenters,
+    unified JSON responses.'
+  title: Gin API Template
+  version: "1.0"
+paths:
+  /api/v1/admin/ping:
+    get:
+      description: Example route protected by JWT + admin role.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/admin.PingOut'
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Admin ping
+      tags:
+      - admin
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Returns a JWT access token.
+      parameters:
+      - description: Login payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.TokenOut'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Login
+      tags:
+      - auth
+  /api/v1/auth/me:
+    get:
+      description: Profile from JWT (no DB hit).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.UserOut'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Current user
+      tags:
+      - auth
+  /api/v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates an account with email and password (bcrypt). Password min
+        12 chars.
+      parameters:
+      - description: Register payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.UserOut'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Register a new user
+      tags:
+      - auth
+  /api/v1/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 'Multipart form field name: file. Size and extensions are restricted.'
+      parameters:
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/upload.UploadResultOut'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Upload a file
+      tags:
+      - upload
+  /api/v1/users/{id}:
+    get:
+      description: Caller may read self or any user if admin.
+      parameters:
+      - description: User UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/user.UserOut'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Get user by ID
+      tags:
+      - users
+  /health/live:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/health.StatusOut'
+              type: object
+      summary: Liveness probe
+      tags:
+      - health
+  /health/ready:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/health.StatusOut'
+              type: object
+      summary: Readiness probe
+      tags:
+      - health
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and your JWT (e.g. Bearer eyJhbGciOi...)
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
