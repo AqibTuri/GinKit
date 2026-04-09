@@ -282,7 +282,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Multipart form field name: file. Size and extensions are restricted.",
+                "description": "Multipart form field name: file. Size and extensions are restricted. Files are saved under UPLOAD_DIR (env, default ./uploads) as {sanitized_original_stem}_{uuid}{ext}.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -576,7 +576,7 @@ const docTemplate = `{
                 },
                 "filename": {
                     "type": "string",
-                    "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479.jpg"
+                    "example": "dashboard_screenshot_f47ac10b-58cc-4372-a567-0e02b2c3d479.png"
                 }
             }
         },

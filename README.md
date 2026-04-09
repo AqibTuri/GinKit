@@ -97,6 +97,40 @@ Useful commands are in the [Makefile](Makefile) (`make run`, `make test`, `make 
 
 ---
 
+## Create an admin user
+
+**Where roles are stored:** In **PostgreSQL only**, table **`public.users`**, column **`role`**.  
+Registration saves a row there (with **`role = 'user'`**). Passwords are stored as a **bcrypt hash** in **`password_hash`**. Nothing about “who is admin” is kept in app config files or JWT files on disk—the **JWT only embeds whatever role the database had at login time**.
+
+There is **no** public HTTP endpoint to register as `admin` (that would be unsafe). You promote an existing account in the database, then **log in again** so new tokens carry `role: admin`.
+
+### Steps
+
+1. **Start Postgres and run migrations** (if you have not already):  
+   `docker compose up -d postgres` then `migrate -path migrations -database "$DATABASE_URL" up` (see [Installation steps](#-installation-steps)).
+
+2. **Create a normal user** via the API:  
+   `POST /api/v1/auth/register` with email and password (or use an account you already have).
+
+3. **Promote that user in the database** (pick one tool):
+
+   - **psql** (replace the email):
+
+     ```bash
+     psql "$DATABASE_URL" -c "UPDATE users SET role = 'admin' WHERE email = 'you@example.com';"
+     ```
+
+   - **pgAdmin:** connect to the same DB as in `.env`, open **Schemas → public → users**, find the row, set **`role`** to `admin`, save.  
+   - Or run the same **`UPDATE`** in pgAdmin’s Query Tool.
+
+4. **Log in again** (`POST /api/v1/auth/login` with cookies or Bearer). Old JWTs still say `user` until you refresh credentials.
+
+5. **Verify:** call `GET /api/v1/admin/ping` (Swagger: **Authorize** with a fresh access token, or use a browser session with cookies after login).
+
+For local Docker defaults matching `docker-compose.yml`, database is **`app`**, user **`app`**, password **`app`**, host **`localhost`**, port **`5432`**.
+
+---
+
 ## Updating Swagger / OpenAPI docs
 
 API docs are **generated** from Go comments on handlers (and the API description in `cmd/api/main.go`) using [swaggo/swag](https://github.com/swaggo/swag). Regenerate whenever you change routes, request/response shapes, or doc text.

@@ -28,9 +28,44 @@ var allowedExt = map[string]struct{}{
 	".pdf": {}, ".txt": {},
 }
 
+// sanitizeUploadStem keeps letters, digits, dash, underscore, dot; spaces become underscores;
+// drops path segments and other risky characters (so filepath.Base is applied by caller).
+func sanitizeUploadStem(stem string) string {
+	if stem == "" {
+		return ""
+	}
+	var b strings.Builder
+	for _, r := range stem {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_', r == '.':
+			b.WriteRune(r)
+		case r == ' ':
+			b.WriteRune('_')
+		default:
+			// drop control chars, path separators, reserved symbols
+		}
+	}
+	s := strings.Trim(b.String(), "._-")
+	if len(s) > 150 {
+		s = s[:150]
+	}
+	return s
+}
+
+// storedUploadName returns "{sanitizedOriginalStem}_{uuid}{ext}" for a unique, human-readable filename.
+func storedUploadName(originalFilename, ext string) string {
+	base := filepath.Base(originalFilename)
+	stem := strings.TrimSuffix(base, filepath.Ext(base))
+	stem = sanitizeUploadStem(stem)
+	if stem == "" {
+		stem = "file"
+	}
+	return fmt.Sprintf("%s_%s%s", stem, uuid.NewString(), ext)
+}
+
 // Upload godoc
 // @Summary      Upload a file
-// @Description  Multipart form field name: file. Size and extensions are restricted.
+// @Description  Multipart form field name: file. Size and extensions are restricted. Files are saved under UPLOAD_DIR (env, default ./uploads) as {sanitized_original_stem}_{uuid}{ext}.
 // @Tags         upload
 // @Accept       multipart/form-data
 // @Produce      json
@@ -67,7 +102,7 @@ func (h *Handler) Upload(c *gin.Context) {
 		response.Error(c, err)
 		return
 	}
-	name := fmt.Sprintf("%s%s", uuid.NewString(), ext)
+	name := storedUploadName(file.Filename, ext)
 	dst := filepath.Join(h.cfg.UploadDir, name)
 	out, err := os.Create(dst)
 	if err != nil {

@@ -280,14 +280,14 @@ RegisterBookRoutes(books, h.Book)
 **JWT-protected (same pattern as users):**
 
 ```go
-books := v1.Group("/books", middleware.JWTAuth(cfg.JWTSecret))
+books := v1.Group("/books", middleware.JWTAuth(cfg, authSvc))
 RegisterBookRoutes(books, h.Book)
 ```
 
 **Admin-only:**
 
 ```go
-books := v1.Group("/books", middleware.JWTAuth(cfg.JWTSecret), middleware.AdminOnly())
+books := v1.Group("/books", middleware.JWTAuth(cfg, authSvc), middleware.AdminOnly())
 RegisterBookRoutes(books, h.Book)
 ```
 

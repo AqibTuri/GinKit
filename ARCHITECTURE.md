@@ -60,7 +60,7 @@ Implementation: `pkg/response` (`OK`, `Fail`, `Error`, `ValidationError`). Valid
 3. **Route group**: JSON binding on DTOs → optional **second validation** via `internal/validate` → **service** → **repository** (GORM).
 4. **Errors**: services return `*apperrors.AppError` or wrapped errors; `pkg/response.Error` maps them to HTTP + JSON with `success: false` and `data.code`. Unknown errors become `500` without leaking internals.
 
-Protected routes add `middleware.JWTAuth` (reads `Authorization: Bearer <token>`). Admin-only routes add `middleware.AdminOnly()` (role guard).
+Protected routes add `middleware.JWTAuth` (access JWT from HttpOnly cookie or `Authorization: Bearer`, with silent refresh when configured). Admin-only routes add `middleware.AdminOnly()` (role guard; `role` comes from the DB via JWT claims).
 
 ---
 
@@ -201,14 +201,14 @@ RegisterBookRoutes(books, h.Book)
 **JWT-protected (same pattern as users):**
 
 ```go
-books := v1.Group("/books", middleware.JWTAuth(cfg.JWTSecret))
+books := v1.Group("/books", middleware.JWTAuth(cfg, authSvc))
 RegisterBookRoutes(books, h.Book)
 ```
 
 **Admin-only:**
 
 ```go
-books := v1.Group("/books", middleware.JWTAuth(cfg.JWTSecret), middleware.AdminOnly())
+books := v1.Group("/books", middleware.JWTAuth(cfg, authSvc), middleware.AdminOnly())
 RegisterBookRoutes(books, h.Book)
 ```
 
