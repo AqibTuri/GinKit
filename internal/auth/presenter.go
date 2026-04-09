@@ -5,7 +5,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// presenter.go — converts internal models / claims to auth.UserOut / TokenOut (safe for clients).
+// presenter.go — converts internal models / claims to auth.UserOut / SessionOut (safe for clients).
 
 // PresentUser maps a domain user to API JSON (no password hash, ever).
 func PresentUser(u *domain.User) UserOut {
@@ -28,9 +28,9 @@ func PresentMe(id uuid.UUID, email, role string) UserOut {
 	}
 }
 
-func PresentToken(access string, expiresSec int64) TokenOut {
-	return TokenOut{
-		AccessToken:      access,
-		ExpiresInSeconds: expiresSec,
+func PresentSession(accessExpiresSec, refreshExpiresSec int64) SessionOut {
+	return SessionOut{
+		ExpiresInSeconds:        accessExpiresSec,
+		RefreshExpiresInSeconds: refreshExpiresSec,
 	}
 }

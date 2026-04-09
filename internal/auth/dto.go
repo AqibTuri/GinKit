@@ -23,7 +23,8 @@ type UserOut struct {
 	Role  string `json:"role" example:"user"`
 }
 
-type TokenOut struct {
-	AccessToken      string `json:"access_token"`
-	ExpiresInSeconds int64  `json:"expires_in_seconds" example:"3600"`
+// SessionOut is returned for login/refresh: tokens are HttpOnly cookies, not in JSON.
+type SessionOut struct {
+	ExpiresInSeconds        int64 `json:"expires_in_seconds" example:"900"`
+	RefreshExpiresInSeconds int64 `json:"refresh_expires_in_seconds" example:"604800"`
 }

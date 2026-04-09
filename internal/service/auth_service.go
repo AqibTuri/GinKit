@@ -14,16 +14,18 @@ import (
 
 // AuthService implements registration and login (password hashing + JWT issuance).
 type AuthService struct {
-	users     *repository.UserRepository
-	jwtSecret []byte
-	jwtTTL    time.Duration
+	users           *repository.UserRepository
+	jwtSecret       []byte
+	jwtTTL          time.Duration
+	jwtRefreshTTL   time.Duration
 }
 
-func NewAuthService(users *repository.UserRepository, jwtSecret string, jwtTTL time.Duration) *AuthService {
+func NewAuthService(users *repository.UserRepository, jwtSecret string, jwtTTL, jwtRefreshTTL time.Duration) *AuthService {
 	return &AuthService{
-		users:     users,
-		jwtSecret: []byte(jwtSecret),
-		jwtTTL:    jwtTTL,
+		users:         users,
+		jwtSecret:     []byte(jwtSecret),
+		jwtTTL:        jwtTTL,
+		jwtRefreshTTL: jwtRefreshTTL,
 	}
 }
 
@@ -51,17 +53,45 @@ func (s *AuthService) Register(ctx context.Context, email, plainPassword string)
 	return u, nil
 }
 
-func (s *AuthService) Login(ctx context.Context, email, plainPassword string) (token string, expiresSec int64, err error) {
+func (s *AuthService) Login(ctx context.Context, email, plainPassword string) (access, refresh string, accessExpSec, refreshExpSec int64, err error) {
 	u, err := s.users.FindByEmail(ctx, email)
 	if err != nil {
-		return "", 0, apperrors.Wrap(err, "DB_ERROR", "failed to look up user", 500)
+		return "", "", 0, 0, apperrors.Wrap(err, "DB_ERROR", "failed to look up user", 500)
 	}
 	if u == nil || !password.Verify(u.PasswordHash, plainPassword) {
-		return "", 0, apperrors.ErrInvalidCredentials
+		return "", "", 0, 0, apperrors.ErrInvalidCredentials
 	}
-	tok, err := jwtutil.Sign(s.jwtSecret, u, s.jwtTTL)
+	acc, err := jwtutil.SignAccess(s.jwtSecret, u, s.jwtTTL)
 	if err != nil {
-		return "", 0, apperrors.Wrap(err, "TOKEN_ERROR", "could not issue token", 500)
+		return "", "", 0, 0, apperrors.Wrap(err, "TOKEN_ERROR", "could not issue access token", 500)
 	}
-	return tok, int64(s.jwtTTL.Seconds()), nil
+	ref, err := jwtutil.SignRefresh(s.jwtSecret, u, s.jwtRefreshTTL)
+	if err != nil {
+		return "", "", 0, 0, apperrors.Wrap(err, "TOKEN_ERROR", "could not issue refresh token", 500)
+	}
+	return acc, ref, int64(s.jwtTTL.Seconds()), int64(s.jwtRefreshTTL.Seconds()), nil
+}
+
+// Refresh validates a refresh JWT, ensures the user still exists, and returns a new access+refresh pair (rotation).
+func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (access, refresh string, accessExpSec, refreshExpSec int64, err error) {
+	claims, err := jwtutil.ParseRefresh(s.jwtSecret, refreshToken)
+	if err != nil {
+		return "", "", 0, 0, apperrors.ErrUnauthorized
+	}
+	u, err := s.users.FindByID(ctx, claims.UserID)
+	if err != nil {
+		return "", "", 0, 0, apperrors.Wrap(err, "DB_ERROR", "failed to look up user", 500)
+	}
+	if u == nil {
+		return "", "", 0, 0, apperrors.ErrUnauthorized
+	}
+	acc, err := jwtutil.SignAccess(s.jwtSecret, u, s.jwtTTL)
+	if err != nil {
+		return "", "", 0, 0, apperrors.Wrap(err, "TOKEN_ERROR", "could not issue access token", 500)
+	}
+	ref, err := jwtutil.SignRefresh(s.jwtSecret, u, s.jwtRefreshTTL)
+	if err != nil {
+		return "", "", 0, 0, apperrors.Wrap(err, "TOKEN_ERROR", "could not issue refresh token", 500)
+	}
+	return acc, ref, int64(s.jwtTTL.Seconds()), int64(s.jwtRefreshTTL.Seconds()), nil
 }

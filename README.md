@@ -24,7 +24,7 @@ Also useful if you search for: *Go web service template*, *Gin CRUD example*, *J
 
 - **HTTP API** on **Gin** with versioned routes (`/api/v1`)
 - **PostgreSQL** with **GORM** and **SQL migrations** (golang-migrate) as schema source of truth
-- **Auth:** registration/login, **bcrypt** passwords, **JWT** access tokens, role helpers (e.g. admin-only routes)
+- **Auth:** registration/login, **bcrypt** passwords, **JWT** in **HttpOnly cookies** (access + refresh) with Bearer fallback, role helpers (e.g. admin-only routes)
 - **Consistent JSON** envelope for every response (`success`, `message`, `status_code`, `data`)
 - **Cross-cutting middleware:** request ID, panic recovery, per-IP **rate limiting** on the API group
 - **Swagger / OpenAPI** UI and generated specs (`make swagger`)
@@ -91,11 +91,41 @@ Dependency wiring (startup): **`cmd/api/main.go`** → **`internal/config`** →
    go run ./cmd/api
    ```
 
-5. **Verify:**
-   - Swagger UI: `http://localhost:8080/swagger/index.html` (port from `HTTP_PORT` in `.env`)
-   - After changing `// @Summary` / `// @Router` on handlers: `make swagger`
+5. **Verify:** open Swagger UI at `http://localhost:8080/swagger/index.html` (port from `HTTP_PORT` in `.env`).
 
 Useful commands are in the [Makefile](Makefile) (`make run`, `make test`, `make swagger`, migrate helpers).
+
+---
+
+## Updating Swagger / OpenAPI docs
+
+API docs are **generated** from Go comments on handlers (and the API description in `cmd/api/main.go`) using [swaggo/swag](https://github.com/swaggo/swag). Regenerate whenever you change routes, request/response shapes, or doc text.
+
+1. **Edit handler comments** in `internal/**/handler.go` (and any other files Swag is configured to parse). Typical tags:
+   - `// @Summary` — short title  
+   - `// @Description` — longer help text  
+   - `// @Tags` — group in the UI  
+   - `// @Router` — full path and method (e.g. `/api/v1/auth/login [post]`)  
+   - `// @Param` / `// @Success` / `// @Failure` — body, query, status models  
+   - `// @Security BearerAuth` — on routes that need a JWT (paste a token from login if you use Bearer in Swagger; cookies apply in-browser)
+
+2. **Regenerate** the `docs/` package from the repo root:
+
+   ```bash
+   make swagger
+   ```
+
+   Equivalent command (see `Makefile`):
+
+   ```bash
+   go run github.com/swaggo/swag/cmd/swag@v1.16.4 init -g cmd/api/main.go -o docs --parseInternal
+   ```
+
+3. **Commit the outputs** Swag overwrote: `docs/docs.go`, `docs/swagger.json`, and `docs/swagger.yaml`. Do **not** hand-edit generated files.
+
+4. **Sanity-check** by running the API and opening Swagger UI again; use **Authorize** with `Bearer <access_token>` if you are testing protected routes without browser cookies.
+
+If you change **global** API metadata (title, `BearerAuth` security definition, base path), update the comment block at the top of **`cmd/api/main.go`**, then run step 2 again.
 
 ---
 

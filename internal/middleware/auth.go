@@ -4,7 +4,10 @@ import (
 	"strings"
 
 	"gin-api/internal/apperrors"
+	"gin-api/internal/authcookie"
+	"gin-api/internal/config"
 	"gin-api/internal/domain"
+	"gin-api/internal/service"
 	"gin-api/pkg/jwtutil"
 	"gin-api/pkg/response"
 	"github.com/gin-gonic/gin"
@@ -17,26 +20,71 @@ const (
 	CtxRole   = "auth_role"
 )
 
-// JWTAuth validates Authorization: Bearer <jwt>, parses claims, stores user id/email/role in Gin context for handlers.
-func JWTAuth(secret string) gin.HandlerFunc {
-	key := []byte(secret)
+func bearerToken(c *gin.Context) string {
+	h := c.GetHeader("Authorization")
+	if h == "" || !strings.HasPrefix(strings.ToLower(h), "bearer ") {
+		return ""
+	}
+	return strings.TrimSpace(h[7:])
+}
+
+func accessTokenFromRequest(c *gin.Context, cookieName string) string {
+	if t, err := c.Cookie(cookieName); err == nil && t != "" {
+		return t
+	}
+	return bearerToken(c)
+}
+
+func refreshTokenFromRequest(c *gin.Context, cookieName string) string {
+	t, err := c.Cookie(cookieName)
+	if err != nil || t == "" {
+		return ""
+	}
+	return t
+}
+
+func setClaims(c *gin.Context, claims *jwtutil.Claims) {
+	c.Set(CtxUserID, claims.UserID)
+	c.Set(CtxEmail, claims.Email)
+	c.Set(CtxRole, claims.Role)
+}
+
+// JWTAuth reads an access JWT from the access cookie or Authorization: Bearer, validates it,
+// and stores user id/email/role in Gin context. If the access token is missing or invalid but a valid
+// refresh cookie exists, it issues new tokens (rotation), sets cookies, and continues.
+func JWTAuth(cfg *config.Config, authSvc *service.AuthService) gin.HandlerFunc {
+	key := []byte(cfg.JWTSecret)
+	cs := cfg.AuthCookieSettings()
 	return func(c *gin.Context) {
-		h := c.GetHeader("Authorization")
-		if h == "" || !strings.HasPrefix(strings.ToLower(h), "bearer ") {
+		raw := accessTokenFromRequest(c, cfg.CookieAccessName)
+		claims, err := jwtutil.ParseAccess(key, raw)
+		if err == nil {
+			setClaims(c, claims)
+			c.Next()
+			return
+		}
+
+		refRaw := refreshTokenFromRequest(c, cfg.CookieRefreshName)
+		if refRaw == "" {
 			response.Error(c, apperrors.ErrUnauthorized)
 			c.Abort()
 			return
 		}
-		raw := strings.TrimSpace(h[7:])
-		claims, err := jwtutil.Parse(key, raw)
+		access, refresh, aMax, rMax, err := authSvc.Refresh(c.Request.Context(), refRaw)
+		if err != nil {
+			response.Error(c, err)
+			c.Abort()
+			return
+		}
+		authcookie.Set(c, cs, access, refresh, int(aMax), int(rMax))
+
+		claims, err = jwtutil.ParseAccess(key, access)
 		if err != nil {
 			response.Error(c, apperrors.ErrUnauthorized)
 			c.Abort()
 			return
 		}
-		c.Set(CtxUserID, claims.UserID)
-		c.Set(CtxEmail, claims.Email)
-		c.Set(CtxRole, claims.Role)
+		setClaims(c, claims)
 		c.Next()
 	}
 }

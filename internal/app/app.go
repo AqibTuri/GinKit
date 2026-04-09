@@ -35,18 +35,18 @@ func New(cfg *config.Config) (*App, error) {
 	}
 
 	userRepo := repository.NewUserRepository(db)
-	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiry)
+	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiry, cfg.JWTRefreshExpiry)
 	userSvc := service.NewUserService(userRepo)
 
 	h := &router.Handlers{
 		Health: health.NewHandler(),
-		Auth:   auth.NewHandler(authSvc),
+		Auth:   auth.NewHandler(authSvc, cfg),
 		User:   user.NewHandler(userSvc),
 		Upload: upload.NewHandler(cfg),
 		Admin:  admin.NewHandler(),
 	}
 
-	engine := router.NewEngine(cfg, h)
+	engine := router.NewEngine(cfg, authSvc, h)
 	slog.Info("app wired", "env", cfg.Env, "gin_mode", cfg.GinMode)
 	return &App{Config: cfg, DB: db, Engine: engine}, nil
 }

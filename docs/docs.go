@@ -60,7 +60,7 @@ const docTemplate = `{
         },
         "/api/v1/auth/login": {
             "post": {
-                "description": "Returns a JWT access token.",
+                "description": "Sets HttpOnly cookies (access + refresh). Optional JSON body for credentials.",
                 "consumes": [
                     "application/json"
                 ],
@@ -94,7 +94,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/auth.TokenOut"
+                                            "$ref": "#/definitions/auth.SessionOut"
                                         }
                                     }
                                 }
@@ -109,6 +109,26 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/logout": {
+            "post": {
+                "description": "Clears auth cookies (client session ends).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Logout",
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/response.Body"
                         }
@@ -144,6 +164,44 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/auth.UserOut"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/refresh": {
+            "post": {
+                "description": "Reads refresh cookie, rotates tokens, sets new HttpOnly cookies.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Refresh session",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/auth.SessionOut"
                                         }
                                     }
                                 }
@@ -450,15 +508,16 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.TokenOut": {
+        "auth.SessionOut": {
             "type": "object",
             "properties": {
-                "access_token": {
-                    "type": "string"
-                },
                 "expires_in_seconds": {
                     "type": "integer",
-                    "example": 3600
+                    "example": 900
+                },
+                "refresh_expires_in_seconds": {
+                    "type": "integer",
+                    "example": 604800
                 }
             }
         },

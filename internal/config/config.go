@@ -4,11 +4,13 @@ package config
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"gin-api/internal/authcookie"
 	"github.com/joho/godotenv"
 )
 
@@ -18,9 +20,16 @@ type Config struct {
 	Env            string
 	HTTPPort       string
 	DatabaseURL    string
-	JWTSecret      string
-	JWTExpiry      time.Duration
-	UploadDir      string
+	JWTSecret         string
+	JWTExpiry         time.Duration // access token lifetime
+	JWTRefreshExpiry  time.Duration
+	CookieAccessName  string
+	CookieRefreshName string
+	CookiePath        string
+	CookieDomain      string
+	CookieSecure      bool
+	CookieSameSite    string // lax | strict | none
+	UploadDir         string
 	MaxUploadBytes int64
 	RateLimitRPS   float64
 	RateBurst      int
@@ -32,7 +41,11 @@ type Config struct {
 func Load() (*Config, error) {
 	_ = godotenv.Load() // .env is optional; production uses real env vars
 
-	jwtExpMin, _ := strconv.Atoi(getEnv("JWT_EXPIRY_MINUTES", "60"))
+	jwtExpMin, _ := strconv.Atoi(getEnv("JWT_EXPIRY_MINUTES", "15"))
+	refreshDays, _ := strconv.Atoi(getEnv("JWT_REFRESH_EXPIRY_DAYS", "7"))
+	if refreshDays <= 0 {
+		refreshDays = 7
+	}
 	maxMB, _ := strconv.ParseInt(getEnv("MAX_UPLOAD_MB", "10"), 10, 64)
 	if maxMB <= 0 {
 		maxMB = 10
@@ -61,18 +74,56 @@ func Load() (*Config, error) {
 		ginMode = "debug"
 	}
 
+	cookieSecure := env != "development"
+	switch strings.ToLower(strings.TrimSpace(getEnv("COOKIE_SECURE", ""))) {
+	case "true":
+		cookieSecure = true
+	case "false":
+		cookieSecure = false
+	}
+
 	return &Config{
-		Env:            env,
-		HTTPPort:       getEnv("HTTP_PORT", "8080"),
-		DatabaseURL:    dbURL,
-		JWTSecret:      secret,
-		JWTExpiry:      time.Duration(jwtExpMin) * time.Minute,
-		UploadDir:      getEnv("UPLOAD_DIR", "./uploads"),
-		MaxUploadBytes: maxMB * 1024 * 1024,
-		RateLimitRPS:   rps,
-		RateBurst:      burst,
-		GinMode:        ginMode,
+		Env:               env,
+		HTTPPort:          getEnv("HTTP_PORT", "8080"),
+		DatabaseURL:       dbURL,
+		JWTSecret:         secret,
+		JWTExpiry:         time.Duration(jwtExpMin) * time.Minute,
+		JWTRefreshExpiry:  time.Duration(refreshDays) * 24 * time.Hour,
+		CookieAccessName:  getEnv("AUTH_ACCESS_COOKIE", "access_token"),
+		CookieRefreshName: getEnv("AUTH_REFRESH_COOKIE", "refresh_token"),
+		CookiePath:        getEnv("AUTH_COOKIE_PATH", "/"),
+		CookieDomain:      getEnv("AUTH_COOKIE_DOMAIN", ""),
+		CookieSecure:      cookieSecure,
+		CookieSameSite:    getEnv("AUTH_COOKIE_SAMESITE", "lax"),
+		UploadDir:         getEnv("UPLOAD_DIR", "./uploads"),
+		MaxUploadBytes:    maxMB * 1024 * 1024,
+		RateLimitRPS:      rps,
+		RateBurst:         burst,
+		GinMode:           ginMode,
 	}, nil
+}
+
+// AuthCookieSettings builds HTTP cookie options for access/refresh tokens.
+func (c *Config) AuthCookieSettings() authcookie.Settings {
+	return authcookie.Settings{
+		AccessName:  c.CookieAccessName,
+		RefreshName: c.CookieRefreshName,
+		Path:        c.CookiePath,
+		Domain:      c.CookieDomain,
+		Secure:      c.CookieSecure,
+		SameSite:    c.cookieSameSiteMode(),
+	}
+}
+
+func (c *Config) cookieSameSiteMode() http.SameSite {
+	switch strings.ToLower(strings.TrimSpace(c.CookieSameSite)) {
+	case "strict":
+		return http.SameSiteStrictMode
+	case "none":
+		return http.SameSiteNoneMode
+	default:
+		return http.SameSiteLaxMode
+	}
 }
 
 func getEnv(key, fallback string) string {

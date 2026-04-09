@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"gin-api/internal/apperrors"
+	"gin-api/internal/authcookie"
+	"gin-api/internal/config"
 	"gin-api/internal/middleware"
 	"gin-api/internal/service"
 	"gin-api/internal/validate"
@@ -11,17 +13,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Handler wires Gin to AuthService. Typical handler flow:
-//  1. ShouldBindJSON → dto
-//  2. validate.Struct (optional second pass)
-//  3. svc.Register / Login / (Me uses middleware claims)
-//  4. presenter → response.OK or response.Error / ValidationError
+// Handler wires Gin to AuthService.
 type Handler struct {
 	svc *service.AuthService
+	cfg *config.Config
 }
 
-func NewHandler(svc *service.AuthService) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *service.AuthService, cfg *config.Config) *Handler {
+	return &Handler{svc: svc, cfg: cfg}
 }
 
 // Register godoc
@@ -55,12 +54,12 @@ func (h *Handler) Register(c *gin.Context) {
 
 // Login godoc
 // @Summary      Login
-// @Description  Returns a JWT access token.
+// @Description  Sets HttpOnly cookies (access + refresh). Optional JSON body for credentials.
 // @Tags         auth
 // @Accept       json
 // @Produce      json
 // @Param        body  body      LoginRequest  true  "Login payload"
-// @Success      200   {object}  response.Body{data=auth.TokenOut}
+// @Success      200   {object}  response.Body{data=auth.SessionOut}
 // @Failure      400   {object}  response.Body
 // @Failure      401   {object}  response.Body
 // @Router       /api/v1/auth/login [post]
@@ -74,12 +73,48 @@ func (h *Handler) Login(c *gin.Context) {
 		response.ValidationError(c, d)
 		return
 	}
-	token, exp, err := h.svc.Login(c.Request.Context(), req.Email, req.Password)
+	access, refresh, aSec, rSec, err := h.svc.Login(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
 		response.Error(c, err)
 		return
 	}
-	response.OK(c, http.StatusOK, "Logged in", PresentToken(token, exp))
+	authcookie.Set(c, h.cfg.AuthCookieSettings(), access, refresh, int(aSec), int(rSec))
+	response.OK(c, http.StatusOK, "Logged in", PresentSession(aSec, rSec))
+}
+
+// Refresh godoc
+// @Summary      Refresh session
+// @Description  Reads refresh cookie, rotates tokens, sets new HttpOnly cookies.
+// @Tags         auth
+// @Produce      json
+// @Success      200  {object}  response.Body{data=auth.SessionOut}
+// @Failure      401  {object}  response.Body
+// @Router       /api/v1/auth/refresh [post]
+func (h *Handler) Refresh(c *gin.Context) {
+	raw, err := c.Cookie(h.cfg.CookieRefreshName)
+	if err != nil || raw == "" {
+		response.Error(c, apperrors.ErrUnauthorized)
+		return
+	}
+	access, refresh, aSec, rSec, err := h.svc.Refresh(c.Request.Context(), raw)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	authcookie.Set(c, h.cfg.AuthCookieSettings(), access, refresh, int(aSec), int(rSec))
+	response.OK(c, http.StatusOK, "Refreshed", PresentSession(aSec, rSec))
+}
+
+// Logout godoc
+// @Summary      Logout
+// @Description  Clears auth cookies (client session ends).
+// @Tags         auth
+// @Produce      json
+// @Success      200  {object}  response.Body
+// @Router       /api/v1/auth/logout [post]
+func (h *Handler) Logout(c *gin.Context) {
+	authcookie.Clear(c, h.cfg.AuthCookieSettings())
+	response.OK(c, http.StatusOK, "Logged out", nil)
 }
 
 // Me godoc

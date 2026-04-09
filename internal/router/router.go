@@ -1,5 +1,5 @@
 // Package router registers all HTTP routes and middleware order for the Gin engine.
-// Order matters: global middleware runs first; then /api/v1 group adds rate limit; some groups add JWTAuth.
+// Order matters: global middleware runs first; then /api/v1 group adds rate limit; some groups add JWTAuth (cookie or Bearer, with silent refresh).
 // Split files: *_routes.go keep URL→handler mapping small and feature-specific.
 package router
 
@@ -9,6 +9,7 @@ import (
 	"gin-api/internal/config"
 	"gin-api/internal/health"
 	"gin-api/internal/middleware"
+	"gin-api/internal/service"
 	"gin-api/internal/upload"
 	"gin-api/internal/user"
 	"github.com/gin-gonic/gin"
@@ -26,7 +27,7 @@ type Handlers struct {
 }
 
 // NewEngine builds the Gin engine with global middleware and versioned API groups.
-func NewEngine(cfg *config.Config, h *Handlers) *gin.Engine {
+func NewEngine(cfg *config.Config, authSvc *service.AuthService, h *Handlers) *gin.Engine {
 	gin.SetMode(cfg.GinMode)
 	r := gin.New()
 	// Global chain (every request): identify → panic-safe JSON → access log
@@ -44,15 +45,15 @@ func NewEngine(cfg *config.Config, h *Handlers) *gin.Engine {
 	v1.Use(middleware.RateLimit(cfg.RateLimitRPS, cfg.RateBurst)) // per-IP token bucket
 
 	authG := v1.Group("/auth")
-	RegisterAuthRoutes(authG, cfg.JWTSecret, h.Auth) // register/login open; /me uses JWT inside auth_routes
+	RegisterAuthRoutes(authG, cfg, authSvc, h.Auth)
 
-	users := v1.Group("/users", middleware.JWTAuth(cfg.JWTSecret))
+	users := v1.Group("/users", middleware.JWTAuth(cfg, authSvc))
 	RegisterUserRoutes(users, h.User)
 
-	uploadG := v1.Group("/upload", middleware.JWTAuth(cfg.JWTSecret))
+	uploadG := v1.Group("/upload", middleware.JWTAuth(cfg, authSvc))
 	RegisterUploadRoutes(uploadG, h.Upload)
 
-	adminG := v1.Group("/admin", middleware.JWTAuth(cfg.JWTSecret), middleware.AdminOnly())
+	adminG := v1.Group("/admin", middleware.JWTAuth(cfg, authSvc), middleware.AdminOnly())
 	RegisterAdminRoutes(adminG, h.Admin)
 
 	return r

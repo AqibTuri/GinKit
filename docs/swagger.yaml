@@ -36,12 +36,13 @@ definitions:
     - email
     - password
     type: object
-  auth.TokenOut:
+  auth.SessionOut:
     properties:
-      access_token:
-        type: string
       expires_in_seconds:
-        example: 3600
+        example: 900
+        type: integer
+      refresh_expires_in_seconds:
+        example: 604800
         type: integer
     type: object
   auth.UserOut:
@@ -132,7 +133,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Returns a JWT access token.
+      description: Sets HttpOnly cookies (access + refresh). Optional JSON body for
+        credentials.
       parameters:
       - description: Login payload
         in: body
@@ -150,7 +152,7 @@ paths:
             - $ref: '#/definitions/response.Body'
             - properties:
                 data:
-                  $ref: '#/definitions/auth.TokenOut'
+                  $ref: '#/definitions/auth.SessionOut'
               type: object
         "400":
           description: Bad Request
@@ -161,6 +163,19 @@ paths:
           schema:
             $ref: '#/definitions/response.Body'
       summary: Login
+      tags:
+      - auth
+  /api/v1/auth/logout:
+    post:
+      description: Clears auth cookies (client session ends).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Logout
       tags:
       - auth
   /api/v1/auth/me:
@@ -185,6 +200,28 @@ paths:
       security:
       - BearerAuth: []
       summary: Current user
+      tags:
+      - auth
+  /api/v1/auth/refresh:
+    post:
+      description: Reads refresh cookie, rotates tokens, sets new HttpOnly cookies.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.SessionOut'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Refresh session
       tags:
       - auth
   /api/v1/auth/register:
